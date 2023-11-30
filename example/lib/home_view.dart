@@ -16,6 +16,7 @@ class HomeView extends StatelessWidget {
     });
     final transformed = counter.transform((val) => val * 2);
     final a = transformed.combine(combined, (current, other) => current + other);
+    
     var globalNameState = SGlobalState.get("name", orNull: () => SState("Hello word"));
     return Scaffold(
       body: SafeArea(
