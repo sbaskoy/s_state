@@ -94,9 +94,7 @@ class SState<T> extends _SBaseState<T> {
 class SReadOnlyState<T> extends _SBaseState<T> {
   SReadOnlyState._fromStream(Stream<T> stream, [T? initialData]) {
     _initialData = initialData;
-    stream.listen((event) {
-      _controller.add(event);
-    });
+    stream.listen(_setState);
     if (initialData != null) {
       _setState(initialData);
     }
@@ -106,7 +104,6 @@ class SReadOnlyState<T> extends _SBaseState<T> {
     _wrapper.setValue(item);
     return item;
   }
-
 }
 
 class _Wrapper<T> {
