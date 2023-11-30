@@ -3,12 +3,12 @@ description: Simple and quick state management
 version: 0.0.1
 homepage: "https://github.com/sbaskoy/s_state"
 repository: "https://github.com/sbaskoy/s_state"
-author: "Salim Baskoy"
+
 
 
 topics:
   - state
-  - state_management
+  - statemanagement
 
 platforms:
   android:
