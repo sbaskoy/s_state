@@ -14,42 +14,21 @@ typedef SBuilderFunction<R> = Widget Function(
 typedef SCombinerSingleFunction<R, T> = R Function(T current, dynamic other);
 typedef SCombinerMultipleFunction<R, T> = R Function(List<T> others);
 
-class SState<T> {
+abstract class SBaseState<T> {
   final StreamController<T> _controller = StreamController<T>.broadcast();
   final _Wrapper<T> _wrapper = _Wrapper<T>();
   T? _initialData;
-
-  SState([T? initialVal]) {
-    _initialData = initialVal;
-
-    if (initialVal != null) {
-      setState(initialVal);
-    }
-  }
-
-  SState.fromStream(Stream<T> stream, [T? initialData]) {
-    _initialData = initialData;
-    stream.listen((event) {
-      _controller.add(event);
-    });
-    if (initialData != null) {
-      setState(initialData);
-    }
-  }
-
   T? get valueOrNull => _wrapper.value;
+  Widget builder(SBuilderFunction<T> builder);
+  SReadOnlyState<R> combine<R>(SBaseState other, SCombinerSingleFunction<R, T> transformer);
+  SReadOnlyState<R> combines<R>(List<SBaseState> others, SCombinerMultipleFunction<R, dynamic> combiner);
+  SReadOnlyState<R> transform<R>(R Function(T value) transformer);
 
-  T setState(T item) {
-    _controller.add(item);
-    _wrapper.setValue(item);
-    return item;
-  }
+}
 
-  void setError(dynamic error) {
-    _controller.addError(error);
-    _wrapper.setError(error);
-  }
+class _SBaseState<T> extends SBaseState {
 
+  @override
   Widget builder(SBuilderFunction<T> builder) {
     return StreamBuilder(
       stream: _controller.stream,
@@ -61,18 +40,20 @@ class SState<T> {
     );
   }
 
-  SState<R> combine<R>(SState other, SCombinerSingleFunction<R, T> transformer) {
+  @override
+  SReadOnlyState<R> combine<R>(SBaseState other, SCombinerSingleFunction<R, T> transformer) {
     var t = _CombinerStream.combineTwo(this, other, (current, other) {
       return transformer(current, other);
     });
     var initial =
         (valueOrNull != null && other.valueOrNull != null) ? transformer(valueOrNull as T, other.valueOrNull) : null;
-    return SState.fromStream(t.stream, initial);
+    return SReadOnlyState._fromStream(t.stream, initial);
   }
 
-  SState<R> combines<R>(List<SState> others, SCombinerMultipleFunction<R, dynamic> combiner) {
+  @override
+  SReadOnlyState<R> combines<R>(List<SBaseState> others, SCombinerMultipleFunction<R, dynamic> combiner) {
     var defaultValues = [this._initialData, ...others.map((e) => e._initialData)];
-    var streams=[this._controller.stream, ...others.map((e) => e._controller.stream)];
+    var streams = [this._controller.stream, ...others.map((e) => e._controller.stream)];
     var t = _CombinerStream._combine(
       streams: streams,
       combiner: (values) {
@@ -81,13 +62,55 @@ class SState<T> {
       defaultValues: defaultValues,
     );
     var initial = (defaultValues.length == streams.length) ? combiner(defaultValues) : null;
-    return SState.fromStream(t.stream, initial);
+    return SReadOnlyState._fromStream(t.stream, initial);
   }
 
-  SState<R> transform<R>(R Function(T value) transformer) {
+  @override
+  SReadOnlyState<R> transform<R>(R Function(T value) transformer) {
     var t = _controller.stream.map((event) => transformer(event));
     var initial = _initialData != null ? transformer(_initialData as T) : null;
-    return SState.fromStream(t, initial);
+    return SReadOnlyState._fromStream(t, initial);
+  }
+}
+
+class SState<T> extends _SBaseState<T> {
+  SState([T? initialVal]) {
+    _initialData = initialVal;
+    if (initialVal != null) {
+      setState(initialVal);
+    }
+  }
+  SState.fromStream(Stream<T> stream, [T? initialData]) {
+    _initialData = initialData;
+    stream.listen((event) {
+      _controller.add(event);
+    });
+    if (initialData != null) {
+      setState(initialData);
+    }
+  }
+
+  T setState(T item) {
+    _controller.add(item);
+    _wrapper.setValue(item);
+    return item;
+  }
+
+  void setError(dynamic error) {
+    _controller.addError(error);
+    _wrapper.setError(error);
+  }
+}
+
+class SReadOnlyState<T> extends _SBaseState<T> {
+  SReadOnlyState._fromStream(Stream<T> stream, [T? initialData]) {
+    _initialData = initialData;
+    stream.listen((event) {
+      _controller.add(event);
+    });
+    if (initialData != null) {
+      _controller.add(initialData);
+    }
   }
 }
 
@@ -108,7 +131,8 @@ class _Wrapper<T> {
 
 class _CombinerStream<T> {
   _CombinerStream._();
-  static StreamController<R> combineTwo<R, A, B>(SState<A> one, SState<B> two, SCombinerSingleFunction<R, A> combiner) {
+  static StreamController<R> combineTwo<R, A, B>(
+      SBaseState<A> one, SBaseState<B> two, SCombinerSingleFunction<R, A> combiner) {
     var streams = [
       one._controller.stream,
       two._controller.stream,

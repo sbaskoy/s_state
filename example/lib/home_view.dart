@@ -15,7 +15,7 @@ class HomeView extends StatelessWidget {
       return others.fold(0, (previousValue, element) => previousValue + ((element ?? 0) as int));
     });
     final transformed = counter.transform((val) => val * 2);
-
+    final a = transformed.combine(combined, (current, other) => current + other);
     var globalNameState = SGlobalState.get("name", orNull: () => SState("Hello word"));
     return Scaffold(
       body: SafeArea(
@@ -48,6 +48,12 @@ class HomeView extends StatelessWidget {
                 state: combinedMultiple,
                 builder: (loading, data, error, context) {
                   return Text("Widget builder $data");
+                },
+              ),
+              SBuilder(
+                state: a,
+                builder: (loading, data, error, context) {
+                  return Text("Combined to combined builder $data");
                 },
               ),
               const SizedBox(height: 50),
