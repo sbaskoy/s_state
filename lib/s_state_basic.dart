@@ -23,9 +23,10 @@ abstract class SBaseState<T> {
   SReadOnlyState<R> combine<R>(SBaseState other, SCombinerSingleFunction<R, T> transformer);
   SReadOnlyState<R> combines<R>(List<SBaseState> others, SCombinerMultipleFunction<R, dynamic> combiner);
   SReadOnlyState<R> transform<R>(R Function(T value) transformer);
+  void listen(Function(T value) onListen);
 }
 
-class _SBaseState<T> extends SBaseState {
+class _SBaseState<T> extends SBaseState<T> {
   @override
   Widget builder(SBuilderFunction<T> builder) {
     return StreamBuilder(
@@ -68,6 +69,11 @@ class _SBaseState<T> extends SBaseState {
     var t = _controller.stream.map((event) => transformer(event));
     var initial = _initialData != null ? transformer(_initialData as T) : null;
     return SReadOnlyState._fromStream(t, initial);
+  }
+
+  @override
+  void listen(Function(T value) onListen, {void Function()? onDone, Function? onError}) {
+    _controller.stream.listen(onListen, onDone: onDone, onError: onError);
   }
 }
 
