@@ -11,7 +11,7 @@ typedef SBuilderFunction<R> = Widget Function(
   BuildContext context,
 );
 
-typedef SCombinerSingleFunction<R, T> = R Function(T current, dynamic other);
+typedef SCombinerSingleFunction<R, T, B> = R Function(T current, B other);
 typedef SCombinerMultipleFunction<R, T> = R Function(List<T> others);
 
 abstract class SBaseState<T> {
@@ -20,10 +20,10 @@ abstract class SBaseState<T> {
   T? _initialData;
   T? get valueOrNull => _wrapper.value;
   Widget builder(SBuilderFunction<T> builder);
-  SReadOnlyState<R> combine<R>(SBaseState other, SCombinerSingleFunction<R, T> transformer);
+  SReadOnlyState<R> combine<R, B>(SBaseState<B> other, SCombinerSingleFunction<R, T, B> transformer);
   SReadOnlyState<R> combines<R>(List<SBaseState> others, SCombinerMultipleFunction<R, dynamic> combiner);
   SReadOnlyState<R> transform<R>(R Function(T value) transformer);
-  void listen(Function(T value) onListen);
+  StreamSubscription<T> listen(Function(T value) onListen);
 }
 
 class _SBaseState<T> extends SBaseState<T> {
@@ -40,12 +40,12 @@ class _SBaseState<T> extends SBaseState<T> {
   }
 
   @override
-  SReadOnlyState<R> combine<R>(SBaseState other, SCombinerSingleFunction<R, T> transformer) {
+  SReadOnlyState<R> combine<R,B>(SBaseState<B> other, SCombinerSingleFunction<R, T,B> transformer) {
     var t = _CombinerStream.combineTwo(this, other, (current, other) {
       return transformer(current, other);
     });
     var initial =
-        (valueOrNull != null && other.valueOrNull != null) ? transformer(valueOrNull as T, other.valueOrNull) : null;
+        (valueOrNull != null && other.valueOrNull != null) ? transformer(valueOrNull as T, other.valueOrNull as B) : null;
     return SReadOnlyState._fromStream(t.stream, initial);
   }
 
@@ -72,8 +72,8 @@ class _SBaseState<T> extends SBaseState<T> {
   }
 
   @override
-  void listen(Function(T value) onListen, {void Function()? onDone, Function? onError}) {
-    _controller.stream.listen(onListen, onDone: onDone, onError: onError);
+  StreamSubscription<T> listen(Function(T value) onListen, {void Function()? onDone, Function? onError}) {
+    return _controller.stream.listen(onListen, onDone: onDone, onError: onError);
   }
 }
 
@@ -130,7 +130,7 @@ class _Wrapper<T> {
 class _CombinerStream<T> {
   _CombinerStream._();
   static StreamController<R> combineTwo<R, A, B>(
-      SBaseState<A> one, SBaseState<B> two, SCombinerSingleFunction<R, A> combiner) {
+      SBaseState<A> one, SBaseState<B> two, SCombinerSingleFunction<R, A, B> combiner) {
     var streams = [
       one._controller.stream,
       two._controller.stream,
@@ -139,7 +139,7 @@ class _CombinerStream<T> {
       streams: streams,
       combiner: (values) {
         var oneVal = values[0];
-        var twoVal = values[1];
+        var twoVal = values[1] as B;
         if (oneVal != null && twoVal != null) {
           return combiner(oneVal as A, twoVal);
         }
