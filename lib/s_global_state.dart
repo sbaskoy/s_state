@@ -24,4 +24,8 @@ class SGlobalState {
     }
     return null;
   }
+
+  static void dispose() {
+    _instance = null;
+  }
 }
